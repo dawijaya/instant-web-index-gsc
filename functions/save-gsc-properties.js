@@ -34,6 +34,7 @@ async function handler(req, res) {
             site_url: site.siteUrl,
             permission_level: site.permissionLevel,
             user_id: tokens.user_id ?? null,
+            token_id: tokens.id, // ← Tambahkan ini
         }));
         console.log('GSC Data:', gscData); // Debug GSC sites milik user
         const { error: insertError } = await supabase

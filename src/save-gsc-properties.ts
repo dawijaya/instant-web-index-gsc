@@ -50,6 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       site_url: site.siteUrl,
       permission_level: site.permissionLevel,
       user_id: tokens.user_id ?? null,
+      token_id: tokens.id, // ← Tambahkan ini
     }))
 
     console.log('GSC Data:', gscData) // Debug GSC sites milik user
