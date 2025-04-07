@@ -1,1 +1,0 @@
-module.exports = require('./functions/fetch-gsc-properties.js')
