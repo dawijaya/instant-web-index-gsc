@@ -1,9 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.handler = void 0;
-const handler = async (event, context) => {
+exports.default = handler;
+async function handler(req, res) {
     const redirectUri = process.env.GOOGLE_REDIRECT_URI;
     const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!redirectUri || !clientId) {
+        return res.status(500).json({ error: 'Missing environment variables' });
+    }
     const scope = encodeURIComponent([
         'https://www.googleapis.com/auth/indexing',
         'https://www.googleapis.com/auth/webmasters.readonly'
@@ -15,12 +18,6 @@ const handler = async (event, context) => {
         `access_type=offline&` +
         `scope=${scope}&` +
         `prompt=consent`;
-    return {
-        statusCode: 302,
-        headers: {
-            Location: authUrl
-        },
-        body: ''
-    };
-};
-exports.handler = handler;
+    res.writeHead(302, { Location: authUrl });
+    res.end();
+}

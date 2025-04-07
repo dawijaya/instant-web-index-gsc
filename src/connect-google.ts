@@ -1,15 +1,20 @@
-import { Handler } from '@netlify/functions'
+import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-const handler: Handler = async (event, context) => {
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI!
-  const clientId = process.env.GOOGLE_CLIENT_ID!
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI
+  const clientId = process.env.GOOGLE_CLIENT_ID
+
+  if (!redirectUri || !clientId) {
+    return res.status(500).json({ error: 'Missing environment variables' })
+  }
 
   const scope = encodeURIComponent([
     'https://www.googleapis.com/auth/indexing',
     'https://www.googleapis.com/auth/webmasters.readonly'
   ].join(' '))
 
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+  const authUrl =
+    `https://accounts.google.com/o/oauth2/v2/auth?` +
     `client_id=${clientId}&` +
     `redirect_uri=${redirectUri}&` +
     `response_type=code&` +
@@ -17,13 +22,6 @@ const handler: Handler = async (event, context) => {
     `scope=${scope}&` +
     `prompt=consent`
 
-  return {
-    statusCode: 302,
-    headers: {
-      Location: authUrl
-    },
-    body: ''
-  }
+  res.writeHead(302, { Location: authUrl })
+  res.end()
 }
-
-export { handler }
