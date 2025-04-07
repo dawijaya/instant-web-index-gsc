@@ -1,8 +1,7 @@
-import { Handler } from '@netlify/functions'
+import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
-import 'dotenv/config'
 
-const handler: Handler = async (event) => {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabase = createClient(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -15,16 +14,9 @@ const handler: Handler = async (event) => {
 
     if (error) throw error
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(data),
-    }
+    return res.status(200).json(data)
   } catch (err: any) {
-    return {
-      statusCode: 500,
-      body: `Failed to fetch GSC properties: ${err.message}`,
-    }
+    console.error('Failed to fetch GSC properties:', err.message || err)
+    return res.status(500).json({ error: `Failed to fetch GSC properties: ${err.message}` })
   }
 }
-
-export { handler }

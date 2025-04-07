@@ -1,9 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.handler = void 0;
+exports.default = handler;
 const supabase_js_1 = require("@supabase/supabase-js");
-require("dotenv/config");
-const handler = async (event) => {
+async function handler(req, res) {
     const supabase = (0, supabase_js_1.createClient)(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
     try {
         const { data, error } = await supabase
@@ -11,16 +10,10 @@ const handler = async (event) => {
             .select('*');
         if (error)
             throw error;
-        return {
-            statusCode: 200,
-            body: JSON.stringify(data),
-        };
+        return res.status(200).json(data);
     }
     catch (err) {
-        return {
-            statusCode: 500,
-            body: `Failed to fetch GSC properties: ${err.message}`,
-        };
+        console.error('Failed to fetch GSC properties:', err.message || err);
+        return res.status(500).json({ error: `Failed to fetch GSC properties: ${err.message}` });
     }
-};
-exports.handler = handler;
+}
