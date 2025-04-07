@@ -18,7 +18,7 @@ const handler = async () => {
             body: 'No valid tokens found',
         };
     }
-    const oauth2Client = new googleapis_1.google.auth.OAuth2();
+    const oauth2Client = new googleapis_1.google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, process.env.GOOGLE_REDIRECT_URI);
     oauth2Client.setCredentials({
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
@@ -46,10 +46,11 @@ const handler = async () => {
             body: JSON.stringify({ message: 'GSC properties saved.', count: gscData.length }),
         };
     }
-    catch (error) {
+    catch (err) {
+        console.error('Failed to fetch or save GSC properties:', err.response?.data || err.message || err);
         return {
             statusCode: 500,
-            body: `Failed to fetch or save GSC properties: ${error.message}`,
+            body: JSON.stringify({ error: err.response?.data || err.message || 'Unknown error' }),
         };
     }
 };
