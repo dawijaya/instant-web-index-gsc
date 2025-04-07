@@ -7,10 +7,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  const accessToken = req.headers['x-access-token'] as string
+
+  if (!accessToken) {
+    return res.status(401).json({ error: 'Access token is required' })
+  }
+
+  // Cari user berdasarkan access token di tabel tokens
+  const { data: tokenData, error: tokenError } = await supabase
+    .from('tokens')
+    .select('user_id')
+    .eq('access_token', accessToken)
+    .single()
+
+  if (tokenError || !tokenData) {
+    return res.status(401).json({ error: 'Invalid or expired access token' })
+  }
+
   try {
+    // Ambil data GSC berdasarkan user_id
     const { data, error } = await supabase
       .from('gsc_properties')
       .select('*')
+      .eq('user_id', tokenData.user_id)
 
     if (error) throw error
 
