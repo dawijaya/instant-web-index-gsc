@@ -25,7 +25,6 @@ async function handler(req, res) {
         console.error('Error fetching token:', tokenError);
         return res.status(500).json({ error: 'Failed to fetch token', detail: tokenError?.message });
     }
-    console.log('Token data:', tokenData);
     if (!tokenData.refresh_token) {
         console.warn('Missing refresh_token in tokenData');
         return res.status(401).json({
@@ -38,8 +37,6 @@ async function handler(req, res) {
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
     });
-    // Refresh access token
-    // Let Google Auth handle refresh token automatically
     try {
         console.log('Getting valid access token...');
         const { token } = await oauth2Client.getAccessToken();
@@ -62,29 +59,33 @@ async function handler(req, res) {
         .select('site_url')
         .eq('token_id', tokenId);
     if (domainError || !domains || domains.length === 0) {
-        console.warn('No domains found:', domainError);
-        return res.status(404).json({ error: 'No domains found for this token_id' });
+        console.error('Error fetching domains:', domainError);
+        return res.status(404).json({
+            error: 'No domains found',
+            detail: domainError?.message || 'No associated site_url with this token_id.',
+        });
     }
-    console.log('Found domains:', domains);
     const results = [];
-    for (const { site_url } of domains) {
-        const normalizedUrl = site_url.startsWith('sc-domain:')
-            ? site_url.replace(/^sc-domain:/, 'https://') + '/index.html'
-            : site_url;
-        const publishBody = {
-            url: normalizedUrl,
-            type: 'URL_UPDATED',
-        };
+    for (const domain of domains) {
+        const siteUrl = domain.site_url;
         try {
-            console.log(`Submitting indexing request for: ${normalizedUrl}`);
-            const response = await indexing.urlNotifications.publish({ requestBody: publishBody });
-            console.log('Indexing response:', response.data);
-            results.push({ site_url: normalizedUrl, status: 'success', response: response.data });
+            console.log(`Submitting ${siteUrl} to Google Indexing API...`);
+            const response = await indexing.urlNotifications.publish({
+                requestBody: {
+                    url: siteUrl,
+                    type: 'URL_UPDATED',
+                },
+            });
+            console.log(`Submitted ${siteUrl} - Status: ${response.status}`);
+            results.push({ site_url: siteUrl, status: 'success' });
         }
         catch (err) {
-            console.error(`Error indexing ${normalizedUrl}:`, err.message);
-            results.push({ site_url: normalizedUrl, status: 'error', error: err.message });
+            console.error(`Failed to submit ${siteUrl}:`, err.message);
+            results.push({ site_url: siteUrl, status: 'error', error: err.message });
         }
     }
-    return res.status(200).json({ results });
+    return res.status(200).json({
+        message: 'Indexing completed',
+        results,
+    });
 }
