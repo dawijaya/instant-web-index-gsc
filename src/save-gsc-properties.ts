@@ -46,12 +46,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const response = await webmasters.sites.list()
     const sites = response.data.siteEntry || []
 
-    const gscData = sites.map(site => ({
-      site_url: site.siteUrl,
-      permission_level: site.permissionLevel,
-      user_id: tokens.user_id ?? null,
-      token_id: tokens.id, // ← Tambahkan ini
-    }))
+  const gscData = sites
+  .filter((site): site is { siteUrl: string; permissionLevel: string } =>
+    typeof site.siteUrl === 'string' &&
+    site.siteUrl.startsWith('http') &&
+    typeof site.permissionLevel === 'string'
+  )
+  .map(site => ({
+    site_url: site.siteUrl,
+    permission_level: site.permissionLevel,
+    user_id: tokens.user_id ?? null,
+    token_id: tokens.id,
+  }))
 
     console.log('GSC Data:', gscData) // Debug GSC sites milik user
 
