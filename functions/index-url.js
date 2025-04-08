@@ -39,18 +39,20 @@ async function handler(req, res) {
         refresh_token: tokenData.refresh_token,
     });
     // Refresh access token
+    // Let Google Auth handle refresh token automatically
     try {
-        console.log('Refreshing access token...');
-        const { credentials } = await oauth2Client.refreshAccessToken();
-        oauth2Client.setCredentials(credentials);
-        console.log('New credentials:', credentials);
+        console.log('Getting valid access token...');
+        const { token } = await oauth2Client.getAccessToken();
+        if (!token)
+            throw new Error('Unable to retrieve access token');
+        console.log('Access token is valid or refreshed:', token);
     }
     catch (err) {
-        console.error('Failed to refresh access token:', err);
+        console.error('Failed to get access token:', err);
         return res.status(401).json({
-            error: 'Failed to refresh access token',
-            detail: err.message || 'Unknown refresh error',
-            suggestion: 'Ensure the refresh_token is still valid. You may need to re-authenticate with prompt=consent.',
+            error: 'Failed to get access token',
+            detail: err.message || 'Unknown error while getting access token',
+            suggestion: 'Ensure refresh_token is valid and not expired.',
         });
     }
     const indexing = googleapis_1.google.indexing({ version: 'v3', auth: oauth2Client });

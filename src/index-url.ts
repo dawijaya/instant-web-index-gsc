@@ -51,19 +51,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   })
 
   // Refresh access token
-  try {
-    console.log('Refreshing access token...')
-    const { credentials } = await oauth2Client.refreshAccessToken()
-    oauth2Client.setCredentials(credentials)
-    console.log('New credentials:', credentials)
-  } catch (err: any) {
-    console.error('Failed to refresh access token:', err)
-    return res.status(401).json({
-      error: 'Failed to refresh access token',
-      detail: err.message || 'Unknown refresh error',
-      suggestion: 'Ensure the refresh_token is still valid. You may need to re-authenticate with prompt=consent.',
-    })
-  }
+// Let Google Auth handle refresh token automatically
+try {
+  console.log('Getting valid access token...')
+  const { token } = await oauth2Client.getAccessToken()
+  if (!token) throw new Error('Unable to retrieve access token')
+
+  console.log('Access token is valid or refreshed:', token)
+} catch (err: any) {
+  console.error('Failed to get access token:', err)
+  return res.status(401).json({
+    error: 'Failed to get access token',
+    detail: err.message || 'Unknown error while getting access token',
+    suggestion: 'Ensure refresh_token is valid and not expired.',
+  })
+}
+
 
   const indexing = google.indexing({ version: 'v3', auth: oauth2Client })
 
