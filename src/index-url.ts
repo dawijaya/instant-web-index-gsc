@@ -1,11 +1,19 @@
-import { Handler } from '@netlify/functions'
+// File: api/index-url.ts
+
+import { VercelRequest, VercelResponse } from '@vercel/node'
 import { google } from 'googleapis'
 import { createClient } from '@supabase/supabase-js'
 import 'dotenv/config'
 
-const handler: Handler = async (event) => {
-  const tokenId = event.headers['x-token-id']
-  if (!tokenId) return { statusCode: 400, body: 'Missing x-token-id header' }
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' })
+  }
+
+  const tokenId = req.headers['x-token-id'] as string
+  if (!tokenId) {
+    return res.status(400).json({ error: 'Missing x-token-id header' })
+  }
 
   const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!)
 
@@ -17,7 +25,7 @@ const handler: Handler = async (event) => {
     .single()
 
   if (tokenError || !tokenData) {
-    return { statusCode: 500, body: 'Failed to fetch token' }
+    return res.status(500).json({ error: 'Failed to fetch token', detail: tokenError?.message })
   }
 
   const oauth2Client = new google.auth.OAuth2()
@@ -35,32 +43,31 @@ const handler: Handler = async (event) => {
     .eq('token_id', tokenId)
 
   if (domainError || !domains || domains.length === 0) {
-    return { statusCode: 404, body: 'No domains found for this token_id' }
+    return res.status(404).json({ error: 'No domains found for this token_id' })
   }
 
   const results = []
 
   for (const { site_url } of domains) {
     try {
-      const res = await indexing.urlNotifications.publish({
+      const response = await indexing.urlNotifications.publish({
         requestBody: {
           url: site_url,
           type: 'URL_UPDATED'
         }
       })
-      results.push({ url: site_url, status: 'success', response: res.data })
+      results.push({ url: site_url, status: 'success', response: response.data })
     } catch (err: any) {
-      results.push({ url: site_url, status: 'error', message: err.message })
+      results.push({
+        url: site_url,
+        status: 'error',
+        message: err?.message || 'Unknown error'
+      })
     }
   }
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify({
-      message: 'Indexing completed',
-      results
-    })
-  }
+  return res.status(200).json({
+    message: 'Indexing completed',
+    results
+  })
 }
-
-export { handler }
