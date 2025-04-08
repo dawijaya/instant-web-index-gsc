@@ -15,7 +15,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing x-token-id header' })
   }
 
-  const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!)
+  const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // GANTI INI
+)
 
   // Ambil token dari Supabase
   const { data: tokenData, error: tokenError } = await supabase
@@ -23,6 +26,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .select('*')
     .eq('id', tokenId)
     .maybeSingle()
+
+  console.log('tokenData:', tokenData)
+console.log('tokenError:', tokenError)
 
   if (tokenError || !tokenData) {
     return res.status(500).json({ error: 'Failed to fetch token', detail: tokenError?.message })

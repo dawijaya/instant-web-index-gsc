@@ -13,13 +13,16 @@ async function handler(req, res) {
     if (!tokenId) {
         return res.status(400).json({ error: 'Missing x-token-id header' });
     }
-    const supabase = (0, supabase_js_1.createClient)(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const supabase = (0, supabase_js_1.createClient)(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY // GANTI INI
+    );
     // Ambil token dari Supabase
     const { data: tokenData, error: tokenError } = await supabase
         .from('tokens')
         .select('*')
         .eq('id', tokenId)
         .maybeSingle();
+    console.log('tokenData:', tokenData);
+    console.log('tokenError:', tokenError);
     if (tokenError || !tokenData) {
         return res.status(500).json({ error: 'Failed to fetch token', detail: tokenError?.message });
     }
