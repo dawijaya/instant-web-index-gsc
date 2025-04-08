@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .from('tokens')
     .select('*')
     .eq('id', tokenId)
-    .single()
+    .maybeSingle()
 
   if (tokenError || !tokenData) {
     return res.status(500).json({ error: 'Failed to fetch token', detail: tokenError?.message })

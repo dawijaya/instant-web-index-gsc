@@ -19,7 +19,7 @@ async function handler(req, res) {
         .from('tokens')
         .select('*')
         .eq('id', tokenId)
-        .single();
+        .maybeSingle();
     if (tokenError || !tokenData) {
         return res.status(500).json({ error: 'Failed to fetch token', detail: tokenError?.message });
     }
