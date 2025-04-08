@@ -1,16 +1,18 @@
-// File: api/index-url.ts
-
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { google } from 'googleapis'
 import { createClient } from '@supabase/supabase-js'
 import 'dotenv/config'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  console.log('Incoming request:', req.method)
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' })
   }
 
   const tokenId = req.headers['x-token-id']
+  console.log('x-token-id:', tokenId)
+
   if (!tokenId || typeof tokenId !== 'string') {
     return res.status(400).json({ error: 'Missing or invalid x-token-id header' })
   }
@@ -20,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Ambil token dari Supabase
+  console.log('Fetching token from Supabase...')
   const { data: tokenData, error: tokenError } = await supabase
     .from('tokens')
     .select('*')
@@ -28,7 +30,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .maybeSingle()
 
   if (tokenError || !tokenData) {
+    console.error('Error fetching token:', tokenError)
     return res.status(500).json({ error: 'Failed to fetch token', detail: tokenError?.message })
+  }
+
+  console.log('Token data:', tokenData)
+
+  if (!tokenData.refresh_token) {
+    console.warn('Missing refresh_token in tokenData')
+    return res.status(401).json({
+      error: 'Missing refresh_token',
+      detail: 'This token_id does not contain a refresh_token. Please re-login with prompt=consent.',
+    })
   }
 
   const oauth2Client = new google.auth.OAuth2()
@@ -37,62 +50,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     refresh_token: tokenData.refresh_token,
   })
 
-  // Refresh access token (wajib kalau access_token bisa expired)
+  // Refresh access token
   try {
+    console.log('Refreshing access token...')
     const { credentials } = await oauth2Client.refreshAccessToken()
     oauth2Client.setCredentials(credentials)
+    console.log('New credentials:', credentials)
   } catch (err: any) {
+    console.error('Failed to refresh access token:', err)
     return res.status(401).json({
       error: 'Failed to refresh access token',
       detail: err.message || 'Unknown refresh error',
+      suggestion: 'Ensure the refresh_token is still valid. You may need to re-authenticate with prompt=consent.',
     })
   }
 
   const indexing = google.indexing({ version: 'v3', auth: oauth2Client })
 
-  // Ambil semua domain dari Supabase berdasarkan token_id
+  console.log('Fetching domains from Supabase...')
   const { data: domains, error: domainError } = await supabase
     .from('gsc_properties')
     .select('site_url')
     .eq('token_id', tokenId)
 
   if (domainError || !domains || domains.length === 0) {
+    console.warn('No domains found:', domainError)
     return res.status(404).json({ error: 'No domains found for this token_id' })
   }
+
+  console.log('Found domains:', domains)
 
   const results = []
 
   for (const { site_url } of domains) {
-    // Ubah sc-domain: jadi https:// (catatan: ini perlu ditambahkan path agar valid untuk indexing)
     const normalizedUrl = site_url.startsWith('sc-domain:')
-      ? site_url.replace(/^sc-domain:/, 'https://') + '/index.html' // tambahkan halaman aktual
+      ? site_url.replace(/^sc-domain:/, 'https://') + '/index.html'
       : site_url
 
-    try {
-      const response = await indexing.urlNotifications.publish({
-        requestBody: {
-          url: normalizedUrl,
-          type: 'URL_UPDATED',
-        },
-      })
+    const publishBody = {
+      url: normalizedUrl,
+      type: 'URL_UPDATED',
+    }
 
-      results.push({
-        url: normalizedUrl,
-        status: 'success',
-        response: response.data,
-      })
+    try {
+      console.log(`Submitting indexing request for: ${normalizedUrl}`)
+      const response = await indexing.urlNotifications.publish({ requestBody: publishBody })
+      console.log('Indexing response:', response.data)
+      results.push({ site_url: normalizedUrl, status: 'success', response: response.data })
     } catch (err: any) {
-      console.error('Indexing error:', normalizedUrl, err.response?.data || err.message)
-      results.push({
-        url: normalizedUrl,
-        status: 'error',
-        message: err.response?.data?.error?.message || err.message || 'Unknown error',
-      })
+      console.error(`Error indexing ${normalizedUrl}:`, err.message)
+      results.push({ site_url: normalizedUrl, status: 'error', error: err.message })
     }
   }
 
-  return res.status(200).json({
-    message: 'Indexing completed',
-    results,
-  })
+  return res.status(200).json({ results })
 }
