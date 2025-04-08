@@ -15,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing x-token-id header' })
   }
 
-  const supabase = createClient(
+  const supabase = createClient(  
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY! // GANTI INI
 )
@@ -54,24 +54,30 @@ console.log('tokenError:', tokenError)
 
   const results = []
 
-  for (const { site_url } of domains) {
-    try {
-      const response = await indexing.urlNotifications.publish({
-        requestBody: {
-          url: site_url,
-          type: 'URL_UPDATED'
-        }
-      })
-      results.push({ url: site_url, status: 'success', response: response.data })
-    } catch (err: any) {
-      results.push({
-        url: site_url,
-        status: 'error',
-        message: err?.message || 'Unknown error'
-      })
-    }
-  }
+ for (const { site_url } of domains) {
+  // Normalize URL: ganti "sc-domain:" jadi "https://"
+  const normalizedUrl = site_url.replace(/^sc-domain:/, 'https://') + '/'
 
+  try {
+    const response = await indexing.urlNotifications.publish({
+      requestBody: {
+        url: normalizedUrl,
+        type: 'URL_UPDATED'
+      }
+    })
+    results.push({
+      url: normalizedUrl,
+      status: 'success',
+      response: response.data
+    })
+  } catch (err: any) {
+    results.push({
+      url: normalizedUrl,
+      status: 'error',
+      message: err?.message || 'Unknown error'
+    })
+  }
+}
   return res.status(200).json({
     message: 'Indexing completed',
     results

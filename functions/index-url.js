@@ -42,18 +42,24 @@ async function handler(req, res) {
     }
     const results = [];
     for (const { site_url } of domains) {
+        // Normalize URL: ganti "sc-domain:" jadi "https://"
+        const normalizedUrl = site_url.replace(/^sc-domain:/, 'https://') + '/';
         try {
             const response = await indexing.urlNotifications.publish({
                 requestBody: {
-                    url: site_url,
+                    url: normalizedUrl,
                     type: 'URL_UPDATED'
                 }
             });
-            results.push({ url: site_url, status: 'success', response: response.data });
+            results.push({
+                url: normalizedUrl,
+                status: 'success',
+                response: response.data
+            });
         }
         catch (err) {
             results.push({
-                url: site_url,
+                url: normalizedUrl,
                 status: 'error',
                 message: err?.message || 'Unknown error'
             });
